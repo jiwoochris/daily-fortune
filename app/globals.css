@@ -7,70 +7,47 @@
 }
 
 :root {
-  /* 무지개 (빨 · 주 · 노 · 초 · 파 · 남 · 보) */
-  --red: #ff4d4d;
-  --orange: #ff9f1c;
-  --yellow: #ffd93d;
-  --green: #3ec46d;
-  --blue: #2d9cff;
-  --indigo: #4a4ae8;
-  --violet: #a855f7;
-
-  --rainbow: linear-gradient(
-    90deg,
-    var(--red),
-    var(--orange),
-    var(--yellow),
-    var(--green),
-    var(--blue),
-    var(--indigo),
-    var(--violet)
-  );
-
-  --ink: #2b2545;
-  --ink-soft: #6b6389;
-  --card: #ffffff;
+  --gold: #e8c07d;
+  --gold-soft: #f6e3bd;
+  --ink: #0d0a1f;
 }
 
 body {
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
     "Pretendard", "Noto Sans KR", sans-serif;
-  color: var(--ink);
+  color: var(--gold-soft);
   background:
-    radial-gradient(900px 520px at 12% 8%, rgba(255, 77, 77, 0.22), transparent 60%),
-    radial-gradient(800px 500px at 42% 0%, rgba(255, 217, 61, 0.22), transparent 60%),
-    radial-gradient(900px 560px at 78% 10%, rgba(62, 196, 109, 0.2), transparent 62%),
-    radial-gradient(1000px 600px at 95% 70%, rgba(168, 85, 247, 0.22), transparent 62%),
-    radial-gradient(900px 560px at 10% 92%, rgba(45, 156, 255, 0.22), transparent 62%),
-    linear-gradient(170deg, #fdfbff 0%, #f5f2fb 100%);
+    radial-gradient(1200px 700px at 50% -10%, #3b2a63 0%, transparent 60%),
+    radial-gradient(900px 600px at 85% 100%, #1e3a5f 0%, transparent 55%),
+    linear-gradient(160deg, #140f2e 0%, #0d0a1f 55%, #07050f 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── 떠다니는 무지개 빛망울 ──────────────── */
+/* ── 별 배경 ───────────────────────────────── */
 .stars {
   position: fixed;
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(4px 4px at 12% 18%, var(--red), transparent),
-    radial-gradient(4px 4px at 76% 12%, var(--orange), transparent),
-    radial-gradient(5px 5px at 34% 66%, var(--yellow), transparent),
-    radial-gradient(4px 4px at 88% 48%, var(--green), transparent),
-    radial-gradient(4px 4px at 58% 30%, var(--blue), transparent),
-    radial-gradient(5px 5px at 22% 86%, var(--indigo), transparent),
-    radial-gradient(4px 4px at 66% 80%, var(--violet), transparent),
-    radial-gradient(4px 4px at 46% 8%, var(--green), transparent),
-    radial-gradient(5px 5px at 92% 74%, var(--red), transparent),
-    radial-gradient(4px 4px at 6% 52%, var(--violet), transparent);
+    radial-gradient(1.6px 1.6px at 12% 18%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 76% 12%, #fff, transparent),
+    radial-gradient(1.8px 1.8px at 34% 66%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 88% 48%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 58% 30%, #fff, transparent),
+    radial-gradient(1.3px 1.3px at 22% 86%, #fff, transparent),
+    radial-gradient(1.7px 1.7px at 66% 80%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 46% 8%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 92% 74%, #fff, transparent),
+    radial-gradient(1.3px 1.3px at 6% 52%, #fff, transparent);
   opacity: 0.5;
   animation: twinkle 4s ease-in-out infinite alternate;
 }
 
 @keyframes twinkle {
-  from { opacity: 0.3; transform: translateY(0); }
-  to { opacity: 0.75; transform: translateY(-6px); }
+  from { opacity: 0.28; }
+  to { opacity: 0.65; }
 }
 
 /* ── 레이아웃 ──────────────────────────────── */
@@ -93,39 +70,30 @@ body {
   font-size: 13px;
   letter-spacing: 0.42em;
   text-transform: uppercase;
-  font-weight: 700;
+  color: rgba(232, 192, 125, 0.65);
   margin-bottom: 10px;
-  background: var(--rainbow);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .title {
   font-size: clamp(30px, 6vw, 44px);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  background: var(--rainbow);
-  background-size: 200% 100%;
+  background: linear-gradient(180deg, #fff8e8 0%, var(--gold) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: rainbow-shift 6s linear infinite;
-}
-
-@keyframes rainbow-shift {
-  to { background-position: 200% 0; }
 }
 
 .date {
   margin-top: 10px;
   font-size: 14px;
-  color: var(--ink-soft);
+  color: rgba(246, 227, 189, 0.55);
 }
 
 /* ── 카드 ─────────────────────────────────── */
 .card-scene {
   perspective: 1400px;
+  /* 높이를 먼저 뷰포트에 맞추고 너비를 비율로 도출 → 카드가 항상 화면 안에 들어온다 */
   height: min(520px, 62vh);
   aspect-ratio: 5 / 8;
   max-width: 88vw;
@@ -149,18 +117,14 @@ body {
   inset: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border-radius: 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(232, 192, 125, 0.4);
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.75),
+    0 0 40px -12px rgba(232, 192, 125, 0.28);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* 무지개 테두리: 안쪽은 카드색(padding-box), 테두리에만 그라디언트(border-box) */
-  border: 4px solid transparent;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--rainbow) border-box;
-  box-shadow:
-    0 24px 50px -18px rgba(74, 74, 232, 0.35),
-    0 4px 16px -6px rgba(168, 85, 247, 0.25);
 }
 
 /* 뒷면(처음 보이는 면) */
@@ -168,47 +132,20 @@ body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-}
-
-/* 뒷면 무지개 아치 */
-.face.back::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  /* 원의 중심을 카드 아래로 내려 위쪽 호(아치)만 보이게 한다 */
-  bottom: -58%;
-  width: 170%;
-  aspect-ratio: 1;
-  transform: translateX(-50%);
-  border-radius: 50%;
   background:
-    radial-gradient(
-      circle,
-      transparent 0 30%,
-      var(--violet) 30% 34%,
-      var(--indigo) 34% 38%,
-      var(--blue) 38% 42%,
-      var(--green) 42% 46%,
-      var(--yellow) 46% 50%,
-      var(--orange) 50% 54%,
-      var(--red) 54% 58%,
-      transparent 58%
-    );
-  opacity: 0.22;
+    repeating-linear-gradient(45deg, rgba(232, 192, 125, 0.06) 0 2px, transparent 2px 12px),
+    radial-gradient(circle at 50% 40%, #3a2a66 0%, #1b1338 60%, #120c26 100%);
 }
 
 .back-sigil {
-  position: relative;
   width: 116px;
   height: 116px;
   border-radius: 50%;
+  border: 1px solid rgba(232, 192, 125, 0.5);
   display: grid;
   place-items: center;
   font-size: 46px;
-  border: 3px solid transparent;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--rainbow) border-box;
+  background: radial-gradient(circle, rgba(232, 192, 125, 0.16), transparent 70%);
   animation: float 3.4s ease-in-out infinite;
 }
 
@@ -218,14 +155,9 @@ body {
 }
 
 .back-label {
-  position: relative;
   font-size: 13px;
-  font-weight: 700;
   letter-spacing: 0.3em;
-  background: var(--rainbow);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: rgba(232, 192, 125, 0.75);
 }
 
 /* 앞면(운세) */
@@ -234,6 +166,9 @@ body {
   justify-content: center;
   padding: 26px 24px;
   gap: 14px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(232, 192, 125, 0.14), transparent 60%),
+    linear-gradient(175deg, #241a48 0%, #16102f 100%);
 }
 
 .front-emoji {
@@ -245,18 +180,15 @@ body {
 .front-title {
   text-align: center;
   font-size: 24px;
-  font-weight: 800;
-  background: var(--rainbow);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-weight: 700;
+  color: #fff6e4;
 }
 
 .front-message {
   text-align: center;
   font-size: 14.5px;
   line-height: 1.75;
-  color: var(--ink-soft);
+  color: rgba(246, 227, 189, 0.82);
   word-break: keep-all;
 }
 
@@ -268,30 +200,27 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--ink-soft);
+  color: rgba(246, 227, 189, 0.6);
   margin-bottom: 6px;
 }
 
 .score-bar {
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
-  background: rgba(43, 37, 69, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
 .score-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--rainbow);
-  background-size: 340px 100%;
+  background: linear-gradient(90deg, #e8c07d, #ffe9b8);
   transition: width 0.9s ease 0.5s;
 }
 
 .divider {
-  height: 2px;
-  border-radius: 999px;
-  background: var(--rainbow);
-  opacity: 0.5;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 192, 125, 0.35), transparent);
   margin: 2px 0;
 }
 
@@ -310,40 +239,38 @@ body {
 }
 
 .lucky-key {
-  color: var(--ink-soft);
+  color: rgba(246, 227, 189, 0.5);
   white-space: nowrap;
 }
 
 .lucky-val {
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 600;
+  color: #fff6e4;
   text-align: right;
   display: flex;
   align-items: center;
   gap: 7px;
 }
 
-/* 귀인의 초성 칩 — 무지개 색을 순서대로 입힌다 */
 .initial-chip {
   display: inline-grid;
   place-items: center;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 6px;
-  border-radius: 8px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 7px;
   font-size: 13px;
-  font-weight: 800;
-  color: #fff;
+  font-weight: 700;
+  color: #fff6e4;
+  background: rgba(232, 192, 125, 0.16);
+  border: 1px solid rgba(232, 192, 125, 0.45);
 }
 
-.initial-chip:nth-child(1) { background: var(--red); }
-.initial-chip:nth-child(2) { background: var(--blue); }
-
 .swatch {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  border: 2px solid rgba(43, 37, 69, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
 }
 
@@ -351,23 +278,20 @@ body {
 .draw-btn {
   padding: 15px 40px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   font-family: inherit;
-  color: #fff;
+  color: #22163f;
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  background: var(--rainbow);
-  background-size: 200% 100%;
-  text-shadow: 0 1px 3px rgba(43, 37, 69, 0.35);
-  box-shadow: 0 12px 28px -10px rgba(74, 74, 232, 0.6);
-  animation: rainbow-shift 6s linear infinite;
+  background: linear-gradient(135deg, #f6e3bd, #e8c07d);
+  box-shadow: 0 12px 30px -10px rgba(232, 192, 125, 0.6);
   transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
 .draw-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 18px 36px -10px rgba(74, 74, 232, 0.7);
+  box-shadow: 0 18px 38px -10px rgba(232, 192, 125, 0.75);
 }
 
 .draw-btn:active:not(:disabled) {
@@ -375,21 +299,17 @@ body {
 }
 
 .draw-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .hint {
   font-size: 12.5px;
-  color: var(--ink-soft);
-  opacity: 0.75;
+  color: rgba(246, 227, 189, 0.4);
   margin-top: -18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .card { transition-duration: 0.01ms; }
-  .stars,
-  .back-sigil,
-  .title,
-  .draw-btn { animation: none; }
+  .stars, .back-sigil { animation: none; }
 }
