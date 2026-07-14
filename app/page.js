@@ -66,7 +66,7 @@ export default function Home() {
         <div className={`card${flipped ? " flipped" : ""}`}>
           {/* 뒷면 */}
           <div className="face back">
-            <div className="back-sigil">🔮</div>
+            <div className="back-sigil">🌈</div>
             <p className="back-label">TAP TO REVEAL</p>
           </div>
 
