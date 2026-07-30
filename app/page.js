@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { drawFortune } from "./fortunes";
 
 const FLIP_MS = 900;
+const HISTORY_KEY = "fortune-history";
+const HISTORY_MAX = 50; // 무한정 쌓이지 않도록 최근 50개만 보관
 
 export default function Home() {
   const [result, setResult] = useState(null);
@@ -11,6 +13,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [scoreWidth, setScoreWidth] = useState(0);
   const [today, setToday] = useState("");
+  const [history, setHistory] = useState([]);
   const timers = useRef([]);
 
   // 날짜는 클라이언트에서만 계산 (하이드레이션 불일치 방지)
@@ -25,15 +28,54 @@ export default function Home() {
     );
   }, []);
 
+  // 저장된 운세 기록 불러오기 (클라이언트에서만)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      if (Array.isArray(saved)) setHistory(saved);
+    } catch {
+      // 손상된 데이터는 무시
+    }
+  }, []);
+
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const after = (ms, fn) => timers.current.push(setTimeout(fn, ms));
+
+  const record = (drawn) => {
+    const entry = {
+      at: Date.now(), // 뽑은 시각 (epoch ms)
+      emoji: drawn.fortune.emoji,
+      title: drawn.fortune.title,
+      score: drawn.fortune.score,
+      item: drawn.item,
+    };
+    setHistory((prev) => {
+      const nextList = [entry, ...prev].slice(0, HISTORY_MAX);
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(nextList));
+      } catch {
+        // 저장 실패(용량 초과 등)해도 화면 표시는 계속
+      }
+      return nextList;
+    });
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {
+      // 무시
+    }
+  };
 
   const reveal = () => {
     const next = drawFortune();
     setResult(next);
     setScoreWidth(0);
     setFlipped(true);
+    record(next);
     after(60, () => setScoreWidth(next.fortune.score));
     after(FLIP_MS, () => setBusy(false));
   };
@@ -134,6 +176,58 @@ export default function Home() {
       </button>
 
       <p className="hint">재미로 보는 운세입니다 ✨</p>
+
+      <section className="history">
+        <div className="history-head">
+          <h3 className="history-title">📜 내 운세 기록</h3>
+          {history.length > 0 && (
+            <button className="history-clear" onClick={clearHistory}>
+              기록 지우기
+            </button>
+          )}
+        </div>
+
+        {history.length === 0 ? (
+          <p className="history-empty">
+            아직 뽑은 운세가 없어요. 위에서 운세를 뽑아보세요!
+          </p>
+        ) : (
+          <div className="history-table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>뽑은 시각</th>
+                  <th>운세</th>
+                  <th className="col-score">지수</th>
+                  <th className="col-item">행운의 아이템</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.at}>
+                    <td className="col-time">{formatTime(h.at)}</td>
+                    <td>
+                      <span className="hist-emoji">{h.emoji}</span>
+                      {h.title}
+                    </td>
+                    <td className="col-score">{h.score}점</td>
+                    <td className="col-item">{h.item}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </main>
   );
+}
+
+function formatTime(ms) {
+  return new Date(ms).toLocaleString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
