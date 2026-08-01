@@ -2,10 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import { drawFortune } from "./fortunes";
+import { supabase, isSupabaseEnabled } from "./supabaseClient";
 
 const FLIP_MS = 900;
-const HISTORY_KEY = "fortune-history";
+const HISTORY_KEY = "fortune-history"; // localStorage 폴백용
+const DEVICE_KEY = "fortune-device-id"; // 로그인이 없으므로 기기별 익명 ID로 기록을 구분
 const HISTORY_MAX = 50; // 무한정 쌓이지 않도록 최근 50개만 보관
+const TABLE = "fortune_history";
+
+// Supabase 행 → 화면에서 쓰는 형태로 변환
+const mapRow = (row) => ({
+  id: row.id,
+  at: new Date(row.drawn_at).getTime(),
+  emoji: row.emoji,
+  title: row.title,
+  score: row.score,
+  item: row.item,
+});
 
 export default function Home() {
   const [result, setResult] = useState(null);
@@ -15,6 +28,7 @@ export default function Home() {
   const [today, setToday] = useState("");
   const [history, setHistory] = useState([]);
   const timers = useRef([]);
+  const deviceId = useRef(null);
 
   // 날짜는 클라이언트에서만 계산 (하이드레이션 불일치 방지)
   useEffect(() => {
@@ -28,13 +42,40 @@ export default function Home() {
     );
   }, []);
 
-  // 저장된 운세 기록 불러오기 (클라이언트에서만)
+  // 기기별 익명 ID 확보 + 저장된 운세 기록 불러오기 (클라이언트에서만)
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      if (Array.isArray(saved)) setHistory(saved);
-    } catch {
-      // 손상된 데이터는 무시
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    deviceId.current = id;
+
+    if (isSupabaseEnabled) {
+      supabase
+        .from(TABLE)
+        .select("*")
+        .eq("device_id", id)
+        .order("drawn_at", { ascending: false })
+        .limit(HISTORY_MAX)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("[supabase] 기록 불러오기 실패:", error.message);
+            return;
+          }
+          if (data) setHistory(data.map(mapRow));
+        });
+    } else {
+      // Supabase 미설정 시 localStorage 폴백
+      try {
+        const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+        if (Array.isArray(saved)) setHistory(saved);
+      } catch {
+        // 손상된 데이터는 무시
+      }
     }
   }, []);
 
@@ -43,30 +84,71 @@ export default function Home() {
   const after = (ms, fn) => timers.current.push(setTimeout(fn, ms));
 
   const record = (drawn) => {
+    const at = Date.now(); // 뽑은 시각 (epoch ms)
     const entry = {
-      at: Date.now(), // 뽑은 시각 (epoch ms)
+      id: at, // 낙관적 렌더링용 임시 키 (Supabase 성공 시 실제 id로 교체)
+      at,
       emoji: drawn.fortune.emoji,
       title: drawn.fortune.title,
       score: drawn.fortune.score,
       item: drawn.item,
     };
-    setHistory((prev) => {
-      const nextList = [entry, ...prev].slice(0, HISTORY_MAX);
+
+    // 화면에는 즉시 반영 (낙관적 업데이트)
+    setHistory((prev) => [entry, ...prev].slice(0, HISTORY_MAX));
+
+    if (isSupabaseEnabled && deviceId.current) {
+      supabase
+        .from(TABLE)
+        .insert({
+          device_id: deviceId.current,
+          drawn_at: new Date(at).toISOString(),
+          emoji: entry.emoji,
+          title: entry.title,
+          score: entry.score,
+          item: entry.item,
+        })
+        .select()
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("[supabase] 기록 저장 실패:", error.message);
+            return;
+          }
+          // 임시 항목을 실제 저장된 행으로 교체
+          if (data) {
+            setHistory((prev) =>
+              prev.map((h) => (h.id === at ? mapRow(data) : h))
+            );
+          }
+        });
+    } else {
       try {
+        const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+        const nextList = [entry, ...saved].slice(0, HISTORY_MAX);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(nextList));
       } catch {
         // 저장 실패(용량 초과 등)해도 화면 표시는 계속
       }
-      return nextList;
-    });
+    }
   };
 
   const clearHistory = () => {
     setHistory([]);
-    try {
-      localStorage.removeItem(HISTORY_KEY);
-    } catch {
-      // 무시
+    if (isSupabaseEnabled && deviceId.current) {
+      supabase
+        .from(TABLE)
+        .delete()
+        .eq("device_id", deviceId.current)
+        .then(({ error }) => {
+          if (error) console.error("[supabase] 기록 삭제 실패:", error.message);
+        });
+    } else {
+      try {
+        localStorage.removeItem(HISTORY_KEY);
+      } catch {
+        // 무시
+      }
     }
   };
 
@@ -204,7 +286,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {history.map((h) => (
-                  <tr key={h.at}>
+                  <tr key={h.id ?? h.at}>
                     <td className="col-time">{formatTime(h.at)}</td>
                     <td>
                       <span className="hist-emoji">{h.emoji}</span>
