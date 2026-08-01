@@ -6,7 +6,7 @@ import { supabase, isSupabaseEnabled } from "./supabaseClient";
 
 const FLIP_MS = 900;
 const HISTORY_KEY = "fortune-history"; // localStorage 폴백용
-const DEVICE_KEY = "fortune-device-id"; // 로그인이 없으므로 기기별 익명 ID로 기록을 구분
+const DEVICE_KEY = "fortune-device-id"; // 로그아웃 상태에서 기기별 익명 ID로 기록 구분
 const HISTORY_MAX = 50; // 무한정 쌓이지 않도록 최근 50개만 보관
 const TABLE = "fortune_history";
 
@@ -27,8 +27,18 @@ export default function Home() {
   const [scoreWidth, setScoreWidth] = useState(0);
   const [today, setToday] = useState("");
   const [history, setHistory] = useState([]);
+
+  // 인증 상태
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMsg, setAuthMsg] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+
   const timers = useRef([]);
   const deviceId = useRef(null);
+  const userRef = useRef(null); // 콜백에서 최신 사용자 참조 (stale closure 방지)
 
   // 날짜는 클라이언트에서만 계산 (하이드레이션 불일치 방지)
   useEffect(() => {
@@ -42,7 +52,7 @@ export default function Home() {
     );
   }, []);
 
-  // 기기별 익명 ID 확보 + 저장된 운세 기록 불러오기 (클라이언트에서만)
+  // 기기별 익명 ID 확보 (클라이언트에서만)
   useEffect(() => {
     let id = localStorage.getItem(DEVICE_KEY);
     if (!id) {
@@ -53,31 +63,59 @@ export default function Home() {
       localStorage.setItem(DEVICE_KEY, id);
     }
     deviceId.current = id;
+  }, []);
 
-    if (isSupabaseEnabled) {
-      supabase
-        .from(TABLE)
-        .select("*")
-        .eq("device_id", id)
-        .order("drawn_at", { ascending: false })
-        .limit(HISTORY_MAX)
-        .then(({ data, error }) => {
-          if (error) {
-            console.error("[supabase] 기록 불러오기 실패:", error.message);
-            return;
-          }
-          if (data) setHistory(data.map(mapRow));
-        });
-    } else {
-      // Supabase 미설정 시 localStorage 폴백
+  // 인증 세션 초기화 + 변화 구독
+  useEffect(() => {
+    if (!isSupabaseEnabled) {
+      setAuthReady(true);
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      const u = data.session?.user ?? null;
+      setUser(u);
+      userRef.current = u;
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      userRef.current = u;
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // 인증 준비 완료 후, 로그인/로그아웃 상태에 맞는 기록 불러오기
+  useEffect(() => {
+    if (!authReady) return;
+
+    if (!isSupabaseEnabled) {
       try {
         const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
         if (Array.isArray(saved)) setHistory(saved);
       } catch {
         // 손상된 데이터는 무시
       }
+      return;
     }
-  }, []);
+
+    let q = supabase
+      .from(TABLE)
+      .select("*")
+      .order("drawn_at", { ascending: false })
+      .limit(HISTORY_MAX);
+    q = user
+      ? q.eq("user_id", user.id)
+      : q.eq("device_id", deviceId.current).is("user_id", null);
+
+    q.then(({ data, error }) => {
+      if (error) {
+        console.error("[supabase] 기록 불러오기 실패:", error.message);
+        return;
+      }
+      setHistory((data || []).map(mapRow));
+    });
+  }, [authReady, user]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -97,17 +135,20 @@ export default function Home() {
     // 화면에는 즉시 반영 (낙관적 업데이트)
     setHistory((prev) => [entry, ...prev].slice(0, HISTORY_MAX));
 
-    if (isSupabaseEnabled && deviceId.current) {
+    if (isSupabaseEnabled) {
+      const row = {
+        device_id: deviceId.current,
+        drawn_at: new Date(at).toISOString(),
+        emoji: entry.emoji,
+        title: entry.title,
+        score: entry.score,
+        item: entry.item,
+      };
+      if (userRef.current) row.user_id = userRef.current.id;
+
       supabase
         .from(TABLE)
-        .insert({
-          device_id: deviceId.current,
-          drawn_at: new Date(at).toISOString(),
-          emoji: entry.emoji,
-          title: entry.title,
-          score: entry.score,
-          item: entry.item,
-        })
+        .insert(row)
         .select()
         .single()
         .then(({ data, error }) => {
@@ -115,7 +156,6 @@ export default function Home() {
             console.error("[supabase] 기록 저장 실패:", error.message);
             return;
           }
-          // 임시 항목을 실제 저장된 행으로 교체
           if (data) {
             setHistory((prev) =>
               prev.map((h) => (h.id === at ? mapRow(data) : h))
@@ -135,14 +175,14 @@ export default function Home() {
 
   const clearHistory = () => {
     setHistory([]);
-    if (isSupabaseEnabled && deviceId.current) {
-      supabase
-        .from(TABLE)
-        .delete()
-        .eq("device_id", deviceId.current)
-        .then(({ error }) => {
-          if (error) console.error("[supabase] 기록 삭제 실패:", error.message);
-        });
+    if (isSupabaseEnabled) {
+      let del = supabase.from(TABLE).delete();
+      del = userRef.current
+        ? del.eq("user_id", userRef.current.id)
+        : del.eq("device_id", deviceId.current).is("user_id", null);
+      del.then(({ error }) => {
+        if (error) console.error("[supabase] 기록 삭제 실패:", error.message);
+      });
     } else {
       try {
         localStorage.removeItem(HISTORY_KEY);
@@ -176,14 +216,105 @@ export default function Home() {
     after(FLIP_MS + 200, reveal);
   };
 
+  // ── 인증 액션 ──────────────────────────────
+  const handleSignIn = async () => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    setAuthMsg("");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) setAuthMsg(`로그인 실패: ${error.message}`);
+    else setPassword("");
+    setAuthBusy(false);
+  };
+
+  const handleSignUp = async () => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    setAuthMsg("");
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setAuthMsg(`회원가입 실패: ${error.message}`);
+    } else if (!data.session) {
+      // 이메일 확인이 켜져 있으면 세션이 없다 → 확인 메일 안내
+      setAuthMsg("확인 이메일을 보냈어요. 메일의 링크를 눌러 인증해 주세요.");
+    } else {
+      setAuthMsg("");
+      setPassword("");
+    }
+    setAuthBusy(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setAuthMsg("");
+  };
+
   return (
     <main className="page">
       <div className="stars" aria-hidden="true" />
 
+      {isSupabaseEnabled && authReady && (
+        <div className="authbar">
+          {user ? (
+            <>
+              <span className="auth-who">🙂 {user.email}</span>
+              <button className="auth-btn ghost" onClick={handleSignOut}>
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <form
+              className="auth-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSignIn();
+              }}
+            >
+              <input
+                className="auth-input"
+                type="email"
+                placeholder="이메일"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+              <input
+                className="auth-input"
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              <button className="auth-btn" type="submit" disabled={authBusy}>
+                로그인
+              </button>
+              <button
+                className="auth-btn ghost"
+                type="button"
+                onClick={handleSignUp}
+                disabled={authBusy}
+              >
+                회원가입
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+      {authMsg && <p className="auth-msg">{authMsg}</p>}
+
       <header className="header">
         <p className="eyebrow">Today&apos;s Fortune</p>
         <h1 className="title">오늘의 운세</h1>
-        <p className="date">{today || " "}</p>
+        <p className="date">{today || " "}</p>
       </header>
 
       <div className="card-scene">
@@ -261,7 +392,9 @@ export default function Home() {
 
       <section className="history">
         <div className="history-head">
-          <h3 className="history-title">📜 내 운세 기록</h3>
+          <h3 className="history-title">
+            📜 {user ? "내 운세 기록" : "이 기기의 운세 기록"}
+          </h3>
           {history.length > 0 && (
             <button className="history-clear" onClick={clearHistory}>
               기록 지우기

@@ -8,7 +8,8 @@
 - 운세 메시지와 운세 지수 (게이지 바)
 - 행운의 아이템 / 행운의 색 / 행운의 숫자 / 귀인의 초성
 - "다시 뽑기"로 언제든 재추첨
-- 운세 기록을 **Supabase**에 저장 (기기별 익명 ID로 구분, 미설정 시 localStorage 폴백)
+- **이메일 로그인**(Supabase Auth): 로그인 시 계정 기준으로 기록 저장(기기 간 공유), 로그아웃 시 기기별
+- 운세 기록을 **Supabase**에 저장 (미설정 시 localStorage 폴백)
 
 운세 12종 × 아이템 15종 × 색상 8종 × 숫자(1–45) × 귀인의 초성 2개를 조합해 뽑습니다.
 
@@ -53,12 +54,24 @@ create index if not exists fortune_history_device_idx
 
 alter table public.fortune_history enable row level security;
 
-create policy "anon_read"   on public.fortune_history for select to anon using (true);
-create policy "anon_insert" on public.fortune_history for insert to anon with check (true);
-create policy "anon_delete" on public.fortune_history for delete to anon using (true);
+-- 로그인 사용자 소유 표시
+alter table public.fortune_history
+  add column if not exists user_id uuid references auth.users(id) default auth.uid();
+
+alter table public.fortune_history enable row level security;
+
+-- 로그아웃(anon): user_id 없는 기기별 익명 행만
+create policy "anon_read"   on public.fortune_history for select to anon          using (user_id is null);
+create policy "anon_insert" on public.fortune_history for insert to anon          with check (user_id is null);
+create policy "anon_delete" on public.fortune_history for delete to anon          using (user_id is null);
+
+-- 로그인(authenticated): 본인 행만 (실제 격리)
+create policy "auth_read"   on public.fortune_history for select to authenticated using (auth.uid() = user_id);
+create policy "auth_insert" on public.fortune_history for insert to authenticated with check (auth.uid() = user_id);
+create policy "auth_delete" on public.fortune_history for delete to authenticated using (auth.uid() = user_id);
 ```
 
-> 로그인이 없어 기기별 구분은 클라이언트 편의 기능이며, anon 키로는 누구나 전체 기록을 읽을 수 있습니다. 사용자별 실제 격리가 필요하면 Supabase Auth를 붙이세요.
+**3. 로그인 방식** — 이메일 + 비밀번호(Supabase Auth 기본)를 사용합니다. 가입 즉시 로그인되게 하려면 대시보드 **Authentication → Sign In / Providers → Email**에서 "Confirm email"을 끄세요. 로그인 시 기록은 계정에 저장되어 기기 간 공유되고, 로그아웃 시에는 기기별(device_id)로 저장됩니다.
 
 ## 구조
 

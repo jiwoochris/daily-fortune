@@ -309,6 +309,90 @@ body {
   margin-top: -18px;
 }
 
+/* ── 인증 바 ──────────────────────────────── */
+.authbar {
+  width: min(560px, 92vw);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: -8px;
+}
+
+.auth-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.auth-input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--gold-soft);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(232, 192, 125, 0.25);
+  border-radius: 9px;
+  padding: 8px 11px;
+  width: 130px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.auth-input::placeholder {
+  color: rgba(246, 227, 189, 0.4);
+}
+
+.auth-input:focus {
+  border-color: rgba(232, 192, 125, 0.6);
+}
+
+.auth-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #22163f;
+  background: linear-gradient(135deg, #f6e3bd, #e8c07d);
+  border: none;
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.auth-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-btn.ghost {
+  color: rgba(246, 227, 189, 0.75);
+  background: transparent;
+  border: 1px solid rgba(232, 192, 125, 0.3);
+}
+
+.auth-btn.ghost:hover:not(:disabled) {
+  color: var(--gold-soft);
+  border-color: rgba(232, 192, 125, 0.6);
+}
+
+.auth-who {
+  font-size: 13px;
+  color: var(--gold-soft);
+}
+
+.auth-msg {
+  width: min(560px, 92vw);
+  text-align: right;
+  font-size: 12.5px;
+  color: rgba(246, 227, 189, 0.7);
+  margin-top: -14px;
+}
+
 /* ── 운세 기록 ────────────────────────────── */
 .history {
   width: min(560px, 92vw);
