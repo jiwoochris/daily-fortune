@@ -166,9 +166,20 @@ body {
   justify-content: center;
   padding: 26px 24px;
   gap: 14px;
+  overflow-y: auto; /* 이미지 등으로 내용이 길어지면 카드 안에서 스크롤 */
   background:
     radial-gradient(circle at 50% 0%, rgba(232, 192, 125, 0.14), transparent 60%),
     linear-gradient(175deg, #241a48 0%, #16102f 100%);
+}
+
+/* 운세에 어울리는 AI 생성 이미지 */
+.fortune-img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 192, 125, 0.35);
+  flex-shrink: 0;
 }
 
 .front-emoji {
@@ -301,6 +312,34 @@ body {
 .draw-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.birth-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -8px;
+}
+
+.birth-label {
+  font-size: 13px;
+  color: rgba(246, 227, 189, 0.7);
+}
+
+.birth-input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--gold-soft);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(232, 192, 125, 0.25);
+  border-radius: 9px;
+  padding: 7px 11px;
+  outline: none;
+  color-scheme: dark; /* 날짜 피커를 다크 테마로 */
+}
+
+.birth-input:focus {
+  border-color: rgba(232, 192, 125, 0.6);
 }
 
 .btn-row {

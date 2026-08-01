@@ -11,6 +11,8 @@
 - **이메일 로그인**(Supabase Auth): 로그인 시 계정 기준으로 기록 저장(기기 간 공유), 로그아웃 시 기기별
 - 운세 기록을 **Supabase**에 저장 (미설정 시 localStorage 폴백)
 - **✨ AI 운세**(OpenRouter): 버튼을 누르면 AI가 그때그때 새 운세를 생성 (서버 라우트에서 호출, 키는 서버 전용)
+  - **생년월일**을 입력하면 별자리/띠/나이대를 반영해 개인화
+  - 운세 내용에 **어울리는 이미지**를 AI가 함께 생성해 카드에 표시
 
 운세 12종 × 아이템 15종 × 색상 8종 × 숫자(1–45) × 귀인의 초성 2개를 조합해 뽑습니다.
 
@@ -82,9 +84,13 @@ create policy "auth_delete" on public.fortune_history for delete to authenticate
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
-# (선택) 모델 지정 — 기본값: openai/gpt-4o-mini
+# (선택) 텍스트 모델 — 기본값: openai/gpt-4o-mini
 # OPENROUTER_MODEL=openai/gpt-4o-mini
+# (선택) 이미지 모델 — 기본값: google/gemini-2.5-flash-image
+# OPENROUTER_IMAGE_MODEL=google/gemini-2.5-flash-image
 ```
+
+> "✨ AI 운세"는 텍스트 생성 + 이미지 생성으로 **AI를 두 번 호출**하므로, 일반 "운세 뽑기"보다 느리고(약 8~12초) 비용이 더 듭니다. 생성된 이미지는 카드에만 표시하고 DB/기록에는 저장하지 않습니다(용량 문제). 생년월일은 브라우저(localStorage)와 AI 요청에만 쓰이며 서버에 저장되지 않습니다.
 
 > ⚠️ OpenRouter 키는 과금되는 **비밀 키**입니다. `NEXT_PUBLIC_`을 붙이면 안 되고, 반드시 서버(`.env`)에만 두세요. 키가 없으면 "✨ AI 운세" 버튼은 에러를 표시하고, 일반 "운세 뽑기"는 그대로 동작합니다.
 

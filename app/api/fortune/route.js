@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+const IMAGE_MODEL =
+  process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
 
 const SYSTEM = `너는 한국어 '오늘의 운세' 작가야. 반드시 아래 JSON 스키마에 맞는 JSON 객체 하나만 출력해. 다른 설명이나 코드펜스는 절대 넣지 마.
 {
@@ -19,7 +21,7 @@ const SYSTEM = `너는 한국어 '오늘의 운세' 작가야. 반드시 아래 
   "initials": ["귀인의 성씨 초성 2개 (예: ㄱ, ㅅ)"]
 }`;
 
-export async function POST() {
+export async function POST(request) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) {
     return Response.json(
@@ -27,6 +29,19 @@ export async function POST() {
       { status: 500 }
     );
   }
+
+  // 생년월일(선택) — 있으면 운세를 개인화한다
+  let birthdate = "";
+  try {
+    const body = await request.json();
+    birthdate = (body?.birthdate || "").toString().slice(0, 20);
+  } catch {
+    // 본문 없거나 파싱 실패 → 개인화 없이 진행
+  }
+
+  const userPrompt = birthdate
+    ? `오늘의 운세를 새로 하나 만들어줘. 매번 다르게, 창의적으로. 이 사람의 생년월일은 ${birthdate}야. 별자리/띠/나이대 느낌을 은근히 반영해서 개인화해줘.`
+    : "오늘의 운세를 새로 하나 만들어줘. 매번 다르게, 창의적으로.";
 
   try {
     const r = await fetch(ENDPOINT, {
@@ -41,15 +56,13 @@ export async function POST() {
         model: MODEL,
         messages: [
           { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: "오늘의 운세를 새로 하나 만들어줘. 매번 다르게, 창의적으로.",
-          },
+          { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },
         temperature: 1.0,
         max_tokens: 400,
       }),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!r.ok) {
@@ -62,13 +75,43 @@ export async function POST() {
 
     const data = await r.json();
     const content = data?.choices?.[0]?.message?.content ?? "{}";
-    return Response.json(normalize(safeParse(content)));
+    const fortune = normalize(safeParse(content));
+
+    // 운세에 어울리는 이미지 생성 (실패해도 운세는 반환)
+    const image = await generateImage(key, fortune).catch(() => null);
+
+    return Response.json({ ...fortune, image });
   } catch (e) {
     return Response.json(
       { error: "AI 운세 생성 실패", detail: String(e).slice(0, 300) },
       { status: 500 }
     );
   }
+}
+
+// 운세 내용에 맞는 이미지를 생성해 data URL로 반환 (실패 시 null)
+async function generateImage(key, f) {
+  const prompt = `A dreamy, ethereal fortune-telling illustration that captures this feeling: "${f.fortune.title}" — ${f.fortune.message}. Mystical tarot-card art style, soft magical glow, ${f.color.name} and deep purple with gold accents, centered symbolic composition, no text, no letters, no words.`;
+
+  const r = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      "X-Title": "Daily Fortune",
+    },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      modalities: ["image", "text"],
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+
+  if (!r.ok) return null;
+  const d = await r.json();
+  const url = d?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  return typeof url === "string" && url.startsWith("data:image") ? url : null;
 }
 
 // 모델이 코드펜스 등을 섞어 보내도 첫 JSON 객체를 뽑아낸다.

@@ -7,6 +7,7 @@ import { supabase, isSupabaseEnabled } from "./supabaseClient";
 const FLIP_MS = 900;
 const HISTORY_KEY = "fortune-history"; // localStorage 폴백용
 const DEVICE_KEY = "fortune-device-id"; // 로그아웃 상태에서 기기별 익명 ID로 기록 구분
+const BIRTH_KEY = "fortune-birthdate"; // 생년월일 (개인화용)
 const HISTORY_MAX = 50; // 무한정 쌓이지 않도록 최근 50개만 보관
 const TABLE = "fortune_history";
 
@@ -39,6 +40,7 @@ export default function Home() {
   // AI 운세 상태
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [birthdate, setBirthdate] = useState("");
 
   const timers = useRef([]);
   const deviceId = useRef(null);
@@ -67,7 +69,20 @@ export default function Home() {
       localStorage.setItem(DEVICE_KEY, id);
     }
     deviceId.current = id;
+
+    const savedBirth = localStorage.getItem(BIRTH_KEY);
+    if (savedBirth) setBirthdate(savedBirth);
   }, []);
+
+  const handleBirthdate = (value) => {
+    setBirthdate(value);
+    try {
+      if (value) localStorage.setItem(BIRTH_KEY, value);
+      else localStorage.removeItem(BIRTH_KEY);
+    } catch {
+      // 무시
+    }
+  };
 
   // 인증 세션 초기화 + 변화 구독
   useEffect(() => {
@@ -228,7 +243,11 @@ export default function Home() {
     setAiLoading(true);
     setAiError("");
     try {
-      const res = await fetch("/api/fortune", { method: "POST" });
+      const res = await fetch("/api/fortune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ birthdate }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
 
@@ -360,7 +379,15 @@ export default function Home() {
             {result && (
               <>
                 {result.ai && <div className="ai-badge">✨ AI가 지은 운세</div>}
-                <div className="front-emoji">{result.fortune.emoji}</div>
+                {result.image ? (
+                  <img
+                    className="fortune-img"
+                    src={result.image}
+                    alt={result.fortune.title}
+                  />
+                ) : (
+                  <div className="front-emoji">{result.fortune.emoji}</div>
+                )}
                 <h2 className="front-title">{result.fortune.title}</h2>
                 <p className="front-message">{result.fortune.message}</p>
 
@@ -415,6 +442,20 @@ export default function Home() {
         </div>
       </div>
 
+      <div className="birth-row">
+        <label htmlFor="birth" className="birth-label">
+          🎂 생년월일
+        </label>
+        <input
+          id="birth"
+          className="birth-input"
+          type="date"
+          value={birthdate}
+          max="2099-12-31"
+          onChange={(e) => handleBirthdate(e.target.value)}
+        />
+      </div>
+
       <div className="btn-row">
         <button
           className="draw-btn"
@@ -428,7 +469,7 @@ export default function Home() {
           onClick={handleDrawAI}
           disabled={busy || aiLoading}
         >
-          {aiLoading ? "AI가 짓는 중…" : "✨ AI 운세"}
+          {aiLoading ? "AI가 그리는 중…" : "✨ AI 운세"}
         </button>
       </div>
 
