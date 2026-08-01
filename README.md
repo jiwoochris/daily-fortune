@@ -10,6 +10,7 @@
 - "다시 뽑기"로 언제든 재추첨
 - **이메일 로그인**(Supabase Auth): 로그인 시 계정 기준으로 기록 저장(기기 간 공유), 로그아웃 시 기기별
 - 운세 기록을 **Supabase**에 저장 (미설정 시 localStorage 폴백)
+- **✨ AI 운세**(OpenRouter): 버튼을 누르면 AI가 그때그때 새 운세를 생성 (서버 라우트에서 호출, 키는 서버 전용)
 
 운세 12종 × 아이템 15종 × 색상 8종 × 숫자(1–45) × 귀인의 초성 2개를 조합해 뽑습니다.
 
@@ -72,6 +73,20 @@ create policy "auth_delete" on public.fortune_history for delete to authenticate
 ```
 
 **3. 로그인 방식** — 이메일 + 비밀번호(Supabase Auth 기본)를 사용합니다. 가입 즉시 로그인되게 하려면 대시보드 **Authentication → Sign In / Providers → Email**에서 "Confirm email"을 끄세요. 로그인 시 기록은 계정에 저장되어 기기 간 공유되고, 로그아웃 시에는 기기별(device_id)로 저장됩니다.
+
+## AI 운세 (OpenRouter, 선택)
+
+"✨ AI 운세" 버튼은 [OpenRouter](https://openrouter.ai)로 운세를 생성합니다. 키는 **서버 라우트(`app/api/fortune`)에서만** 읽으며 브라우저로 노출되지 않습니다.
+
+`.env`에 키를 넣으세요 (커밋되지 않음):
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+# (선택) 모델 지정 — 기본값: openai/gpt-4o-mini
+# OPENROUTER_MODEL=openai/gpt-4o-mini
+```
+
+> ⚠️ OpenRouter 키는 과금되는 **비밀 키**입니다. `NEXT_PUBLIC_`을 붙이면 안 되고, 반드시 서버(`.env`)에만 두세요. 키가 없으면 "✨ AI 운세" 버튼은 에러를 표시하고, 일반 "운세 뽑기"는 그대로 동작합니다.
 
 ## 구조
 

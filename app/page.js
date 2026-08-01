@@ -36,6 +36,10 @@ export default function Home() {
   const [authMsg, setAuthMsg] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
 
+  // AI 운세 상태
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
   const timers = useRef([]);
   const deviceId = useRef(null);
   const userRef = useRef(null); // 콜백에서 최신 사용자 참조 (stale closure 방지)
@@ -192,8 +196,7 @@ export default function Home() {
     }
   };
 
-  const reveal = () => {
-    const next = drawFortune();
+  const revealWith = (next) => {
     setResult(next);
     setScoreWidth(0);
     setFlipped(true);
@@ -202,8 +205,10 @@ export default function Home() {
     after(FLIP_MS, () => setBusy(false));
   };
 
+  const reveal = () => revealWith(drawFortune());
+
   const handleDraw = () => {
-    if (busy) return;
+    if (busy || aiLoading) return;
     setBusy(true);
 
     if (!flipped) {
@@ -214,6 +219,31 @@ export default function Home() {
     // 이미 뒤집혀 있으면 되돌린 뒤 새 운세로 다시 뒤집는다
     setFlipped(false);
     after(FLIP_MS + 200, reveal);
+  };
+
+  // OpenRouter로 AI가 생성한 운세 뽑기
+  const handleDrawAI = async () => {
+    if (busy || aiLoading) return;
+    setBusy(true);
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const res = await fetch("/api/fortune", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
+
+      // 이미 뒤집혀 있으면 되돌린 뒤 새 운세로 다시 뒤집는다
+      if (flipped) {
+        setFlipped(false);
+        await new Promise((r) => setTimeout(r, FLIP_MS + 200));
+      }
+      setAiLoading(false);
+      revealWith(data);
+    } catch (e) {
+      setAiLoading(false);
+      setBusy(false);
+      setAiError(e.message || "AI 운세 생성에 실패했어요.");
+    }
   };
 
   // ── 인증 액션 ──────────────────────────────
@@ -329,6 +359,7 @@ export default function Home() {
           <div className="face front" aria-live="polite">
             {result && (
               <>
+                {result.ai && <div className="ai-badge">✨ AI가 지은 운세</div>}
                 <div className="front-emoji">{result.fortune.emoji}</div>
                 <h2 className="front-title">{result.fortune.title}</h2>
                 <p className="front-message">{result.fortune.message}</p>
@@ -384,10 +415,24 @@ export default function Home() {
         </div>
       </div>
 
-      <button className="draw-btn" onClick={handleDraw} disabled={busy}>
-        {flipped ? "다시 뽑기" : "운세 뽑기"}
-      </button>
+      <div className="btn-row">
+        <button
+          className="draw-btn"
+          onClick={handleDraw}
+          disabled={busy || aiLoading}
+        >
+          {flipped ? "다시 뽑기" : "운세 뽑기"}
+        </button>
+        <button
+          className="draw-btn ai"
+          onClick={handleDrawAI}
+          disabled={busy || aiLoading}
+        >
+          {aiLoading ? "AI가 짓는 중…" : "✨ AI 운세"}
+        </button>
+      </div>
 
+      {aiError && <p className="ai-error">{aiError}</p>}
       <p className="hint">재미로 보는 운세입니다 ✨</p>
 
       <section className="history">
